@@ -188,8 +188,10 @@ main (int argc, char **argv)
       word_t length = buffer[data] - 3;
       fprintf (stderr, "%6lld  ", length);
 
+      /* Modified -> mtime. */
       print_datime (stderr, buffer[i+3]);
       fprintf (stderr, " (");
+      /* Referenced -> atime. */
       print_date (stderr, buffer[i+4]);
       fputc (')', stderr);
 
