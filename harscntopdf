@@ -16,19 +16,23 @@
 
 # Convert a Harvard scan file into a PDF file.
 
-# Needs: mktemp harscntopbm pnmsplit pnmflip ppm2tiff tiffcp tiff2pdf
+# Needs: convert mktemp harscntopbm pnmsplit pnmflip ppm2tiff tiffcp tiff2pdf
 
 usage () {
-	echo "Usage: $0 [-W<word format>] [-r<angle>] <harscn file> <PDF file>"
+	echo "Usage: $0 [-W<word format>] [-r<angle>] [-b] <harscn file> <PDF file>"
 	exit 1
 }
 
 wordformat=""
+blur=false
 rotate=""
 while getopts "W:r:" opt; do
 	case "$opt" in
 	W)
 		wordformat="-W$OPTARG"
+		;;
+	b)
+		blur=true
 		;;
 	r)
 		rotate="-r$OPTARG"
@@ -54,8 +58,14 @@ trap 'rm -fr "$tempdir"' 0
 harscntopbm $wordformat "$input" | pnmsplit - "$tempdir/%d.pbm"
 for f in "$tempdir"/*.pbm; do
 	n=$(basename "$f" .pbm)
+	dpi=200
+	if $blur; then
+		dpi=600
+		convert "$f" -resize '6336x4845!' -gaussian-blur x2 -threshold '80%' "$tempdir"/t.pbm
+		mv "$tempdir"/t.pbm "$f"
+	fi
 	pnmflip $rotate "$f" | \
-		ppm2tiff -R 200 /dev/stdin "$tempdir"/$(printf "p%06d" "$n").tif
+		ppm2tiff -R $dpi /dev/stdin "$tempdir"/$(printf "p%06d" "$n").tif
 done
-tiffcp -t -c g4 "$tempdir"/p*.tif "$tempdir"/all.tif
+tiffcp -c g4 "$tempdir"/p*.tif "$tempdir"/all.tif
 tiff2pdf -c "harscntopdf" -o "$output" "$tempdir"/all.tif
